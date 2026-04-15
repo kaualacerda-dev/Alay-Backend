@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { v2 as cloudinary } from 'cloudinary';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDto } from './dto/create.dto';
 
@@ -17,7 +18,9 @@ type UploadedImageFile = {
 
 @Injectable()
 export class ProductService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {
+    this.configureCloudinary();
+  }
 
   async create(dto: CreateDto, file?: UploadedImageFile) {
     const productExists = await this.prisma.product.findUnique({
@@ -25,14 +28,14 @@ export class ProductService {
     });
 
     if (productExists) {
-      throw new BadRequestException('Produto já existe!');
+      throw new BadRequestException('Produto ja existe!');
     }
 
     const price = Number(dto.price);
     const stock = Number(dto.stock);
 
     if (Number.isNaN(price) || Number.isNaN(stock)) {
-      throw new BadRequestException('price e stock precisam ser numéricos.');
+      throw new BadRequestException('Preco e stock precisam ser numericos.');
     }
 
     const uploadedImage = file ? await this.uploadImage(file) : null;
@@ -56,59 +59,57 @@ export class ProductService {
 
   async uploadImage(file: UploadedImageFile) {
     if (!file.mimetype?.startsWith('image/')) {
-      throw new BadRequestException('Apenas arquivos de imagem são permitidos.');
+      throw new BadRequestException('Apenas arquivos de imagem sao permitidos.');
     }
 
-    const uploadUrl = process.env.IMGBB_API_URL;
-
-    if (!uploadUrl) {
+    if (!process.env.CLOUDINARY_URL) {
       throw new InternalServerErrorException(
-        'IMGBB_API_URL não configurada no ambiente.',
+        'CLOUDINARY_URL nao configurada no ambiente.',
       );
     }
 
-    const requestUrl = new URL(uploadUrl);
-    const apiKey = process.env.IMGBB_API_KEY;
+    try {
+      const result = await new Promise<{
+        secure_url: string;
+        public_id: string;
+      }>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'products',
+            resource_type: 'image',
+            use_filename: true,
+            unique_filename: true,
+          },
+          (error, result) => {
+            if (error) {
+              reject(error);
+              return;
+            }
 
-    if (apiKey && !requestUrl.searchParams.has('key')) {
-      requestUrl.searchParams.set('key', apiKey);
-    }
+            if (!result?.secure_url || !result.public_id) {
+              reject(new Error('Cloudinary nao retornou a URL da imagem.'));
+              return;
+            }
 
-    const payload = new URLSearchParams();
-    payload.append('image', file.buffer.toString('base64'));
-    payload.append('name', file.originalname);
+            resolve({
+              secure_url: result.secure_url,
+              public_id: result.public_id,
+            });
+          },
+        );
 
-    const response = await fetch(requestUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: payload,
-    });
+        stream.end(file.buffer);
+      });
 
-    const result = (await response.json()) as {
-      success?: boolean;
-      data?: {
-        url?: string;
-        display_url?: string;
-        delete_url?: string;
+      return {
+        url: result.secure_url,
+        publicId: result.public_id,
       };
-      error?: {
-        message?: string;
-      };
-    };
-
-    if (!response.ok || !result.success || !result.data?.url) {
+    } catch (error) {
       throw new BadRequestException(
-        result.error?.message || 'Falha ao enviar imagem para o ImgBB.',
+        this.getCloudinaryErrorMessage(error),
       );
     }
-
-    return {
-      url: result.data.url,
-      displayUrl: result.data.display_url,
-      deleteUrl: result.data.delete_url,
-    };
   }
 
   async getProducts(params: {
@@ -171,7 +172,7 @@ export class ProductService {
     });
 
     if (!product) {
-      throw new NotFoundException('Produto não encontrado');
+      throw new NotFoundException('Produto nao encontrado');
     }
 
     return this.prisma.product.delete({
@@ -192,4 +193,57 @@ export class ProductService {
     category: true,
     createdAt: true,
   } satisfies Prisma.ProductSelect;
+
+  private configureCloudinary() {
+    const cloudinaryUrl = process.env.CLOUDINARY_URL;
+
+    if (!cloudinaryUrl) {
+      return;
+    }
+
+    let parsedUrl: URL;
+
+    try {
+      parsedUrl = new URL(cloudinaryUrl);
+    } catch {
+      throw new InternalServerErrorException(
+        'CLOUDINARY_URL invalida no ambiente.',
+      );
+    }
+
+    if (
+      parsedUrl.protocol !== 'cloudinary:' ||
+      !parsedUrl.username ||
+      !parsedUrl.password ||
+      !parsedUrl.hostname
+    ) {
+      throw new InternalServerErrorException(
+        'CLOUDINARY_URL invalida no ambiente.',
+      );
+    }
+
+    cloudinary.config({
+      cloud_name: parsedUrl.hostname,
+      api_key: decodeURIComponent(parsedUrl.username),
+      api_secret: decodeURIComponent(parsedUrl.password),
+      secure: true,
+    });
+  }
+
+  private getCloudinaryErrorMessage(error: unknown) {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'message' in error &&
+      typeof error.message === 'string'
+    ) {
+      return error.message;
+    }
+
+    return 'Falha ao enviar imagem para o Cloudinary.';
+  }
 }

@@ -13,8 +13,8 @@ export class CreateDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(4)
-  @MaxLength(14)
-  name: string;
+  @MaxLength(20)
+  name!: string;
 
   @IsString()
   @IsOptional()
@@ -30,17 +30,17 @@ export class CreateDto {
   @IsNotEmpty()
   @MinLength(6)
   @MaxLength(10)
-  sku: string;
+  sku!: string;
 
   @IsNumberString()
   @IsNotEmpty()
-  price: string;
+  price!: string;
 
   @IsNumberString()
   @IsNotEmpty()
-  stock: string;
+  stock!: string;
 
   @IsNotEmpty()
   @IsEnum(ProductCategory)
-  category: ProductCategory;
+  category!: ProductCategory;
 }

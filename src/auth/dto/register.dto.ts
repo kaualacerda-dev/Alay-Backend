@@ -10,16 +10,16 @@ import { UserRole } from '@prisma/client';
 
 export class RegisterDto {
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
   @MinLength(6)
   @MaxLength(20)
-  password: string;
+  password!: string;
 
   @IsString()
   @MaxLength(14)
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsEnum(UserRole)
