@@ -4,9 +4,10 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const port = Number(process.env.PORT) || 3001;
 
   app.enableCors({
-    origin: ['http://localhost:4200', 'http://localhost:3000'],
+    origin: ['http://localhost:4200','0.0.0.0.', 'http://localhost:3000'],
     credentials: true,
   });
 
@@ -18,6 +19,6 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(3001);
+  await app.listen(port);
 }
 bootstrap();
