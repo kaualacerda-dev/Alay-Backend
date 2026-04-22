@@ -8,7 +8,7 @@ async function bootstrap() {
     const port = Number(process.env.PORT) || 3001;
 
     app.enableCors({
-      origin: ['http://localhost:4200', 'https://alay-backend.onrender.com', 'http://localhost:3000'],
+      origin: ['http://localhost:4200', 'https://alay-admin.onrender.com', 'http://localhost:3000'],
       credentials: true,
     });
 
