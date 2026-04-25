@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { createValidationException } from './common/validation/validation-exception.factory';
 
 async function bootstrap() {
   try {
@@ -17,6 +18,7 @@ async function bootstrap() {
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
+        exceptionFactory: createValidationException,
       }),
     );
 

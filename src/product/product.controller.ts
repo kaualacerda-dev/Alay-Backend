@@ -53,7 +53,6 @@ export class ProductController {
     return this.productService.create(dto, file);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get()
   getProducts(
     @Query('page') page?: string,
