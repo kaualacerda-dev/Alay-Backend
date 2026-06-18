@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { createValidationException } from './common/validation/validation-exception.factory';
 
 async function bootstrap() {
   try {
@@ -8,7 +9,7 @@ async function bootstrap() {
     const port = Number(process.env.PORT) || 3001;
 
     app.enableCors({
-      origin: ['http://localhost:4200', 'https://alay-admin.onrender.com', 'http://localhost:3000'],
+      origin: ['http://localhost:4200', 'https://alay-admin.onrender.com', 'https://alay-front.onrender.com', 'http://localhost:3000'],
       credentials: true,
     });
 
@@ -17,6 +18,7 @@ async function bootstrap() {
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
+        exceptionFactory: createValidationException,
       }),
     );
 
